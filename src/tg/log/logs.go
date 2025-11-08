@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/MrReality255/tg.git/tg/utils"
+	"github.com/MrReality255/turbo-go/tg/utils"
 
 	log "github.com/sirupsen/logrus"
 )
