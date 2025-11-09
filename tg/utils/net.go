@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 )
@@ -39,6 +40,25 @@ func Serve(addr string, handler func(conn net.Conn) error, errHandler func(err e
 func NewTcpClient(addr string, port int) (net.Conn, error) {
 	c, err := net.Dial("tcp", fmt.Sprintf("%v:%v", addr, port))
 	return c, err
+}
+
+func NewTcpServer(port int, handler func(c net.Conn), errHandler func(error)) (io.Closer, error) {
+	listener, err := net.Listen("tcp4", GetServerAddr(port))
+	if err != nil {
+		return nil, err
+	}
+
+	go func() {
+		for {
+			c, err := listener.Accept()
+			if err != nil && errHandler != nil {
+				errHandler(err)
+			}
+			handler(c)
+		}
+
+	}()
+	return listener, nil
 }
 
 func GetHttpFrom(url string, target interface{}) error {

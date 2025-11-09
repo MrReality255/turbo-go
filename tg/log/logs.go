@@ -9,7 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type LogSetup struct {
+type Config struct {
 	Filename string
 }
 
@@ -56,9 +56,9 @@ func LogError(msg string, err error) {
 	log.Error(msg, err)
 }
 
-func Setup(setup *LogSetup) {
+func Setup(setup *Config) {
 	if setup == nil {
-		setup = &LogSetup{}
+		setup = &Config{}
 	}
 	lw := &logFileWriter{filename: setup.Filename}
 
