@@ -140,24 +140,6 @@ func NewFromFileJSON[T any](file string) (*T, error) {
 	return &item, err
 }
 
-func ReadFixed(r io.Reader, length int) ([]byte, error) {
-	var (
-		b = make([]byte, length)
-		p = b[0:len(b)]
-	)
-	for {
-		n, err := r.Read(p)
-		length -= n
-		switch {
-		case err != nil:
-			return nil, err
-		case n == 0 || length == 0:
-			return b, nil
-		}
-		p = p[n:]
-	}
-}
-
 func SaveToBin(filename string, obj any) error {
 	f, err := os.Create(filename)
 	if err != nil {
