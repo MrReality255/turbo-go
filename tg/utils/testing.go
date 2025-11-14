@@ -5,16 +5,16 @@ import (
 	"testing"
 )
 
-func TestAsString(t *testing.T, hint string, testCase int, required string, actual any) {
-	TestString(t, hint, testCase, required, fmt.Sprintf("%v", actual))
+func TestAsString(t *testing.T, testCase int, hint string, required string, actual any) {
+	TestString(t, testCase, hint, required, fmt.Sprintf("%v", actual))
 }
 
-func TestString(t *testing.T, hint string, testCase int, required string, actual string) {
+func TestString(t *testing.T, testCase int, hint string, required string, actual string) {
 	if required != actual {
 		t.Errorf("%s #%v failed: \nexpected %s\nreceived %s", hint, testCase, required, actual)
 	}
 }
 
-func TestStringF(t *testing.T, hint string, testCase int, want string, got string, args ...any) {
-	TestString(t, hint, testCase, want, fmt.Sprintf(got, args...))
+func TestStringF(t *testing.T, testCase int, hint string, want string, got string, args ...any) {
+	TestString(t, testCase, hint, want, fmt.Sprintf(got, args...))
 }
