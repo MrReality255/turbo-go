@@ -26,6 +26,12 @@ func Must[T any](src T, err error) T {
 	return src
 }
 
+func MustSucceed(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
 func StrToFloat64(str string) float64 {
 	v, err := strconv.ParseFloat(str, 64)
 	if err != nil {
