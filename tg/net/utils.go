@@ -5,6 +5,8 @@ import (
 	"io"
 	"net"
 	"net/http"
+
+	"github.com/MrReality255/turbo-go/tg/utils"
 )
 
 func GetServerAddr(port int) string {
@@ -27,7 +29,7 @@ func Serve(addr string, handler func(conn net.Conn) error, errHandler func(err e
 		}
 
 		go func() {
-			err := CloseAfter(conn, func() error {
+			err := utils.CloseAfter(conn, func() error {
 				return handler(conn)
 			})
 			if err != nil && errHandler != nil {
@@ -67,5 +69,5 @@ func GetHttpFrom(url string, target interface{}) error {
 	if err != nil {
 		return err
 	}
-	return FromJSON(r.Body, target)
+	return utils.FromJSON(r.Body, target)
 }
