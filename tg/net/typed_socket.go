@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/MrReality255/turbo-go/tg/log"
+	"github.com/MrReality255/turbo-go/tg/utils"
 )
 
 type IAbstractSocket interface {
@@ -16,12 +17,15 @@ type IAbstractSocket interface {
 type ITypedSocket[T any] interface {
 	io.Closer
 	Read() (T, error)
+	RequestHandlerLoop(requestHandler func(msg T) (T, error))
+	Wait()
 	Write(data T) error
 }
 
 type TypedSocket[T any] struct {
 	conn     io.Closer
 	mx       *sync.Mutex
+	chClose  chan bool
 	isClosed bool
 
 	onRead  func() (T, error)
@@ -88,6 +92,11 @@ func (m *TypedSocket[T]) closeLocked() error {
 func (m *TypedSocket[T]) Close() error {
 	m.mx.Lock()
 	defer m.mx.Unlock()
+	if m.chClose != nil {
+		m.chClose <- true
+		close(m.chClose)
+		m.chClose = nil
+	}
 	return m.closeLocked()
 }
 
@@ -112,6 +121,16 @@ func (m *TypedSocket[T]) RequestHandlerLoop(requestHandler func(msg T) (T, error
 			m.abort("error while writing the response", err)
 		}
 	}
+}
+
+func (m *TypedSocket[T]) Wait() {
+	utils.ExecLocked(m.mx, func() {
+		if m.chClose != nil {
+			panic("socket is already waiting")
+		}
+		m.chClose = make(chan bool, 1)
+	})
+	<-m.chClose
 }
 
 func (m *TypedSocket[T]) Write(data T) error {
