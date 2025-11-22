@@ -62,3 +62,7 @@ func (c *Counter) Get() int64 {
 	defer c.mx.Unlock()
 	return c.value
 }
+
+func Align[T constraints.Integer](src T, step T) T {
+	return (src / step) * step
+}

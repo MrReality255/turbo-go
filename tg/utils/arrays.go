@@ -2,6 +2,14 @@ package utils
 
 import "sort"
 
+func ArrayCast[S Numeric, T Numeric](src []S) []T {
+	result := make([]T, 0, len(src))
+	for _, item := range src {
+		result = append(result, T(item))
+	}
+	return result
+}
+
 func ArrayClone[T any](src []T) []T {
 	return ArrayFilter(src, nil)
 }
