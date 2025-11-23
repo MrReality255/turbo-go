@@ -48,12 +48,22 @@ func LogIfError(msg string, err error) {
 	}
 }
 
+func LogIfWarnErr(msg string, err error) {
+	if err != nil {
+		log.Warning(msg, err)
+	}
+}
+
 func LogInfo(msg string, params ...any) {
 	log.Info(fmt.Sprintf(msg, params...))
 }
 
 func LogError(msg string, err error) {
 	log.Error(msg, err)
+}
+
+func LogWarnErr(msg string, err error) {
+	log.Warning(msg, err)
 }
 
 func Setup(setup *Config) {
