@@ -3,11 +3,15 @@ package log
 import (
 	"fmt"
 	"os"
+	"sort"
+	"strings"
 
 	"github.com/MrReality255/turbo-go/tg/utils"
 
 	log "github.com/sirupsen/logrus"
 )
+
+type Context map[string]any
 
 type Config struct {
 	Filename string
@@ -62,8 +66,18 @@ func LogError(msg string, err error) {
 	log.Error(msg, err)
 }
 
+func LogWarn(msg string, params ...any) {
+	log.Warn(fmt.Sprintf(msg, params...))
+}
+
 func LogWarnErr(msg string, err error) {
 	log.Warning(msg, err)
+}
+
+func LogIfErrCtx(msg string, err error, ctx Context) {
+	if err != nil {
+		log.Errorf("%v: %v%v", msg, err, ctx)
+	}
 }
 
 func Setup(setup *Config) {
@@ -78,4 +92,18 @@ func Setup(setup *Config) {
 		log.SetOutput(os.Stdout)
 	}
 	log.SetLevel(log.DebugLevel)
+}
+
+func (c Context) String() string {
+	if c == nil || len(c) == 0 {
+		return ""
+	}
+
+	items := make([]string, 0, len(c))
+	for k, v := range c {
+		items = append(items, fmt.Sprintf("%s=%v", k, v))
+	}
+	sort.Strings(items)
+	return "{" + strings.Join(items, ", ") + "}"
+
 }

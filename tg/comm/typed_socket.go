@@ -1,11 +1,16 @@
 package comm
 
 import (
+	"errors"
 	"io"
 	"sync"
 
 	"github.com/MrReality255/turbo-go/tg/log"
 	"github.com/MrReality255/turbo-go/tg/utils"
+)
+
+var (
+	ErrNoResponse = errors.New("no response")
 )
 
 type IAbstractSocket interface {
@@ -86,17 +91,18 @@ func (m *TypedSocket[T]) closeLocked() error {
 		return nil
 	}
 	m.isClosed = true
+	if m.chClose != nil {
+		m.chClose <- true
+		close(m.chClose)
+		m.chClose = nil
+	}
+
 	return m.conn.Close()
 }
 
 func (m *TypedSocket[T]) Close() error {
 	m.mx.Lock()
 	defer m.mx.Unlock()
-	if m.chClose != nil {
-		m.chClose <- true
-		close(m.chClose)
-		m.chClose = nil
-	}
 	return m.closeLocked()
 }
 
@@ -109,10 +115,14 @@ func (m *TypedSocket[T]) RequestHandlerLoop(requestHandler func(msg T) (T, error
 		msg, err := m.Read()
 		if err != nil {
 			m.abort("error while reading the message", err)
+			return
 		}
 
 		response, err := requestHandler(msg)
 		if err != nil {
+			if utils.IsErr(err, ErrNoResponse) {
+				continue
+			}
 			m.abort("error while handling the request", err)
 			return
 		}

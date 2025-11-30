@@ -1,11 +1,21 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 )
 
 type CountMap map[*int]bool
+
+func IsErr(err error, options ...error) bool {
+	for _, o := range options {
+		if errors.Is(err, o) {
+			return true
+		}
+	}
+	return false
+}
 
 func ExecErr(f interface{}) error {
 	switch f := f.(type) {
