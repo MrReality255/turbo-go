@@ -9,6 +9,12 @@ func MapClone[T comparable, S any](m map[T]S) map[T]S {
 }
 
 func MapKeys[C comparable, T any](
+	src map[C]T, lessFct func(item1 C, item2 C) bool,
+) []C {
+	return MapKeysIf(src, nil, lessFct)
+}
+
+func MapKeysIf[C comparable, T any](
 	src map[C]T, condFct func(item C, value T) bool, lessFct func(item1 C, item2 C) bool,
 ) []C {
 	result := make([]C, 0, len(src))
@@ -25,9 +31,17 @@ func MapKeys[C comparable, T any](
 }
 
 func MapValues[C comparable, T any](src map[C]T, lessFct func(item1 T, item2 T) bool) []T {
+	return MapValuesIf(src, nil, lessFct)
+}
+
+func MapValuesIf[C comparable, T any](
+	src map[C]T, selectFct func(key C, value T) bool, lessFct func(item1 T, item2 T) bool,
+) []T {
 	result := make([]T, 0, len(src))
-	for _, value := range src {
-		result = append(result, value)
+	for key, value := range src {
+		if selectFct == nil || selectFct(key, value) {
+			result = append(result, value)
+		}
 	}
 	if lessFct != nil {
 		Sort(result, lessFct)
