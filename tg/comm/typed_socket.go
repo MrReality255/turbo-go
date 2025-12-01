@@ -22,7 +22,6 @@ type IAbstractSocket interface {
 type ITypedSocket[T any] interface {
 	io.Closer
 	Read() (T, error)
-	RequestHandlerLoop(requestHandler func(msg T) (T, error))
 	Wait()
 	Write(data T) error
 }
@@ -108,29 +107,6 @@ func (m *TypedSocket[T]) Close() error {
 
 func (m *TypedSocket[T]) Read() (T, error) {
 	return m.onRead()
-}
-
-func (m *TypedSocket[T]) RequestHandlerLoop(requestHandler func(msg T) (T, error)) {
-	for {
-		msg, err := m.Read()
-		if err != nil {
-			m.abort("error while reading the message", err)
-			return
-		}
-
-		response, err := requestHandler(msg)
-		if err != nil {
-			if utils.IsErr(err, ErrNoResponse) {
-				continue
-			}
-			m.abort("error while handling the request", err)
-			return
-		}
-
-		if err = m.Write(response); err != nil {
-			m.abort("error while writing the response", err)
-		}
-	}
 }
 
 func (m *TypedSocket[T]) Wait() {
