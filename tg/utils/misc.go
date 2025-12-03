@@ -83,3 +83,7 @@ func permStep(count int, from float64, till float64, step float64, fct func(case
 	}
 }
 */
+
+func DataOrErr[T any](data T, err error) ItemWithErr[T] {
+	return ItemWithErr[T]{Data: data, Err: err}
+}
