@@ -42,13 +42,13 @@ func (l *logFileWriter) Write(p []byte) (n int, err error) {
 	return len(p), os.WriteFile(l.filename, p, 0644)
 }
 
-func LogDebug(msg string, params ...any) {
+func Debug(msg string, params ...any) {
 	log.Debug(fmt.Sprintf(msg, params...))
 }
 
-func LogIfError(msg string, err error) {
+func IfError(msg string, err error) {
 	if err != nil {
-		log.Error(msg, err)
+		LogError(msg, err)
 	}
 }
 
@@ -58,15 +58,18 @@ func LogIfWarnErr(msg string, err error) {
 	}
 }
 
-func LogInfo(msg string, params ...any) {
+func Info(msg string, params ...any) {
 	log.Info(fmt.Sprintf(msg, params...))
 }
 
 func LogError(msg string, err error) {
-	log.Error(msg, err)
+	if !strings.Contains(msg, "%") {
+		msg = fmt.Sprintf("%v %%v", msg, err)
+	}
+	log.Errorf(msg, err)
 }
 
-func LogWarn(msg string, params ...any) {
+func Warn(msg string, params ...any) {
 	log.Warn(fmt.Sprintf(msg, params...))
 }
 
