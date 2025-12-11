@@ -3,6 +3,7 @@ package broker
 import (
 	"github.com/MrReality255/turbo-go/tg/utils"
 	"sync"
+	"time"
 )
 
 /*
@@ -19,6 +20,8 @@ type IBrokerMember[CmdTx comparable, MemberRec comparable, Command any, MsgType 
 
 const (
 	queueSize = 64
+
+	HandleAny = 0
 )
 
 type Handle uint64
@@ -26,6 +29,8 @@ type Handle uint64
 type ICommand interface {
 	GetID() Handle
 }
+
+type RequestHandler[Command ICommand] func(cmd Command, err error) bool
 
 type IMember interface {
 	GetID() Handle
@@ -38,15 +43,24 @@ type IBroker[Cmd ICommand] interface {
 }
 
 type IBrokerMember[Command ICommand] interface {
-	Request(cmd Command) (Command, error)
-	RequestMultiple(cmd Command, handler func(response Command) bool)
+	Request(receiver Handle, cmd Command) (Command, error)
+	RequestMultiple(receiver Handle, cmd Command, handler RequestHandler[Command])
 	Send(receiver Handle, cmd Command, ref Handle)
 	Subscribe(cmdType ...uint32)
 }
 
+type messageRequest[Command ICommand] struct {
+	handler     RequestHandler[Command]
+	nextTimeout time.Time
+}
+
 type memberWrapper[Command ICommand] struct {
-	member IMember
-	broker *controller[Command]
+	member         IMember
+	broker         *controller[Command]
+	requestTimeout time.Duration
+
+	activeRequests map[Handle]*messageRequest[Command]
+	mx             sync.Mutex
 }
 
 type messageWrapper[Command ICommand] struct {
@@ -59,6 +73,8 @@ type messageWrapper[Command ICommand] struct {
 type subscribersMap map[uint32]map[Handle]bool
 
 type controller[Command ICommand] struct {
+	requestTimeout time.Duration
+
 	mx sync.Mutex
 
 	chQueue     chan *messageWrapper[Command]
@@ -67,11 +83,12 @@ type controller[Command ICommand] struct {
 	subscribers subscribersMap
 }
 
-func New[Command ICommand]() IBroker[Command] {
+func New[Command ICommand](timeout time.Duration) IBroker[Command] {
 	c := &controller[Command]{
-		chQueue:     make(chan *messageWrapper[Command], queueSize),
-		members:     make(map[Handle]*memberWrapper[Command]),
-		subscribers: make(subscribersMap),
+		requestTimeout: timeout,
+		chQueue:        make(chan *messageWrapper[Command], queueSize),
+		members:        make(map[Handle]*memberWrapper[Command]),
+		subscribers:    make(subscribersMap),
 	}
 	go c.startLoop()
 	return c
@@ -80,7 +97,12 @@ func New[Command ICommand]() IBroker[Command] {
 func (c *controller[Command]) AddMember(member IMember) IBrokerMember[Command] {
 	c.mx.Lock()
 	defer c.mx.Unlock()
-	wrapper := &memberWrapper[Command]{member: member, broker: c}
+	wrapper := &memberWrapper[Command]{
+		broker:         c,
+		member:         member,
+		requestTimeout: c.requestTimeout,
+		activeRequests: make(map[Handle]*messageRequest[Command]),
+	}
 	c.members[member.GetID()] = wrapper
 	return wrapper
 }
@@ -107,7 +129,7 @@ func (c *controller[Command]) dispatchMessage(msg *messageWrapper[Command]) {
 	defer c.mx.Unlock()
 
 	// the message has an exact receiver: pass it to the receiver
-	if msg.receiver.GetSeqID() != 0 {
+	if msg.receiver.GetSeqID() != HandleAny {
 		go c.members[msg.receiver].handleMessage(msg.sender, msg.cmd, msg.ref)
 		return
 	}
@@ -164,14 +186,21 @@ func (c *controller[Command]) subscribe(subscriber Handle, cmdTypes ...uint32) {
 	}
 }
 
-func (m *memberWrapper[Command]) Request(cmd Command) (Command, error) {
+func (m *memberWrapper[Command]) Request(receiver Handle, cmd Command) (Command, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (m *memberWrapper[Command]) RequestMultiple(cmd Command, handler func(response Command) bool) {
-	//TODO implement me
-	panic("implement me")
+func (m *memberWrapper[Command]) RequestMultiple(
+	receiver Handle, cmd Command, handler RequestHandler[Command],
+) {
+	reqHandle := cmd.GetID()
+	utils.ExecLocked(&m.mx, func() {
+		m.activeRequests[reqHandle] = &messageRequest[Command]{
+			handler:     handler,
+			nextTimeout: time.Now().Add(m.requestTimeout),
+		}
+	})
 }
 
 func (m *memberWrapper[Command]) Send(receiver Handle, cmd Command, ref Handle) {
