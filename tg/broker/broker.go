@@ -1,22 +1,12 @@
 package broker
 
 import (
-	"github.com/MrReality255/turbo-go/tg/utils"
+	"errors"
 	"sync"
 	"time"
+
+	"github.com/MrReality255/turbo-go/tg/utils"
 )
-
-/*
-	- every member has a unique id (int64), consisting of 32 bit type, 32 bit id within the type
-	- every command has its own id (int64), consisting of 32 bit type, 32 bit id within the type
-*/
-
-/*
-type IBrokerMember[CmdTx comparable, MemberRec comparable, Command any, MsgType comparable] interface {
-	About() MemberRec
-	HandleMessage(msg Command)
-}
-*/
 
 const (
 	queueSize = 64
@@ -24,38 +14,53 @@ const (
 	HandleAny = 0
 )
 
+var (
+	ErrRequestTimeout = errors.New("request timeout")
+)
+
 type Handle uint64
 
+type ICommand any
+
+/*
 type ICommand interface {
 	GetID() Handle
+	GetRefID() Handle
 }
+*/
 
-type RequestHandler[Command ICommand] func(cmd Command, err error) bool
+type RequestHandler[Cmd ICommand] func(cmd Cmd, err error) bool
+type MemberMessageHandler[Cmd ICommand] func(sender Handle, msg Cmd, member IMember[Cmd])
 
-type IMember interface {
+/*
+type IMember[Command ICommand] interface {
 	GetID() Handle
-	HandleMessage(sender Handle, msg ICommand, ref Handle)
+	HandleMessage(sender Handle, msg Command)
 }
+*/
 
 type IBroker[Cmd ICommand] interface {
-	AddMember(member IMember) IBrokerMember[Cmd]
+	AddMember(id Handle, messageHandler MemberMessageHandler[Cmd]) IMember[Cmd]
 	Stop()
 }
 
-type IBrokerMember[Command ICommand] interface {
+type IMember[Command ICommand] interface {
 	Request(receiver Handle, cmd Command) (Command, error)
 	RequestMultiple(receiver Handle, cmd Command, handler RequestHandler[Command])
-	Send(receiver Handle, cmd Command, ref Handle)
+	Send(receiver Handle, cmd Command)
 	Subscribe(cmdType ...uint32)
 }
 
 type messageRequest[Command ICommand] struct {
+	mx          sync.Mutex
 	handler     RequestHandler[Command]
 	nextTimeout time.Time
+	closed      bool
 }
 
 type memberWrapper[Command ICommand] struct {
-	member         IMember
+	id             Handle
+	messageHandler MemberMessageHandler[Command]
 	broker         *controller[Command]
 	requestTimeout time.Duration
 
@@ -67,13 +72,13 @@ type messageWrapper[Command ICommand] struct {
 	cmd      Command
 	sender   Handle
 	receiver Handle
-	ref      Handle
 }
 
 type subscribersMap map[uint32]map[Handle]bool
 
 type controller[Command ICommand] struct {
 	requestTimeout time.Duration
+	msgFct         func(cmd Command) Handle
 
 	mx sync.Mutex
 
@@ -83,8 +88,12 @@ type controller[Command ICommand] struct {
 	subscribers subscribersMap
 }
 
-func New[Command ICommand](timeout time.Duration) IBroker[Command] {
+func New[Command ICommand](
+	getMessageID func(cmd Command) Handle,
+	timeout time.Duration,
+) IBroker[Command] {
 	c := &controller[Command]{
+		msgFct:         getMessageID,
 		requestTimeout: timeout,
 		chQueue:        make(chan *messageWrapper[Command], queueSize),
 		members:        make(map[Handle]*memberWrapper[Command]),
@@ -94,16 +103,19 @@ func New[Command ICommand](timeout time.Duration) IBroker[Command] {
 	return c
 }
 
-func (c *controller[Command]) AddMember(member IMember) IBrokerMember[Command] {
+func (c *controller[Command]) AddMember(
+	handle Handle, messageHandler MemberMessageHandler[Command],
+) IMember[Command] {
 	c.mx.Lock()
 	defer c.mx.Unlock()
 	wrapper := &memberWrapper[Command]{
+		id:             handle,
+		messageHandler: messageHandler,
 		broker:         c,
-		member:         member,
 		requestTimeout: c.requestTimeout,
 		activeRequests: make(map[Handle]*messageRequest[Command]),
 	}
-	c.members[member.GetID()] = wrapper
+	c.members[handle] = wrapper
 	return wrapper
 }
 
@@ -130,7 +142,7 @@ func (c *controller[Command]) dispatchMessage(msg *messageWrapper[Command]) {
 
 	// the message has an exact receiver: pass it to the receiver
 	if msg.receiver.GetSeqID() != HandleAny {
-		go c.members[msg.receiver].handleMessage(msg.sender, msg.cmd, msg.ref)
+		go c.members[msg.receiver].handleMessage(msg.sender, msg.cmd)
 		return
 	}
 
@@ -148,7 +160,7 @@ func (c *controller[Command]) dispatchMessage(msg *messageWrapper[Command]) {
 			}
 			handled[subscriber] = true
 			handledType[subscriber.GetTypeID()] = true
-			go c.members[subscriber].handleMessage(msg.sender, msg.cmd, msg.ref)
+			go c.members[subscriber].handleMessage(msg.sender, msg.cmd)
 		}
 	}
 
@@ -156,20 +168,20 @@ func (c *controller[Command]) dispatchMessage(msg *messageWrapper[Command]) {
 	if recTypeID := msg.receiver.GetTypeID(); recTypeID != 0 && !handledType[recTypeID] {
 		for m, h := range c.members {
 			if m.GetTypeID() == recTypeID {
-				go h.handleMessage(msg.sender, msg.cmd, msg.ref)
+				go h.handleMessage(msg.sender, msg.cmd)
 				return
 			}
 		}
 	}
 }
 
-func (c *controller[Command]) send(sender Handle, receiver Handle, cmd Command, refID Handle) {
+func (c *controller[Command]) send(sender Handle, receiver Handle, cmd Command) {
 	c.mx.Lock()
 	defer c.mx.Unlock()
 	if c.closed {
 		return
 	}
-	c.chQueue <- &messageWrapper[Command]{cmd: cmd, sender: sender, receiver: receiver, ref: refID}
+	c.chQueue <- &messageWrapper[Command]{cmd: cmd, sender: sender, receiver: receiver}
 }
 
 func (c *controller[Command]) subscribe(subscriber Handle, cmdTypes ...uint32) {
@@ -187,8 +199,16 @@ func (c *controller[Command]) subscribe(subscriber Handle, cmdTypes ...uint32) {
 }
 
 func (m *memberWrapper[Command]) Request(receiver Handle, cmd Command) (Command, error) {
-	//TODO implement me
-	panic("implement me")
+	chResponse := make(chan *utils.ItemWithErr[Command], 1)
+	m.RequestMultiple(receiver, cmd, func(cmd Command, err error) bool {
+		chResponse <- &utils.ItemWithErr[Command]{
+			Data: cmd,
+			Err:  err,
+		}
+		return true
+	})
+	result := <-chResponse
+	return result.Data, result.Err
 }
 
 func (m *memberWrapper[Command]) RequestMultiple(
@@ -201,18 +221,80 @@ func (m *memberWrapper[Command]) RequestMultiple(
 			nextTimeout: time.Now().Add(m.requestTimeout),
 		}
 	})
+	m.Send(receiver, cmd)
+	go m.checkRequestTimeout(reqHandle)
 }
 
-func (m *memberWrapper[Command]) Send(receiver Handle, cmd Command, ref Handle) {
-	go m.broker.send(m.member.GetID(), receiver, cmd, ref)
+func (m *memberWrapper[Command]) Send(receiver Handle, cmd Command) {
+	go m.broker.send(m.id, receiver, cmd)
 }
 
 func (m *memberWrapper[Command]) Subscribe(cmdType ...uint32) {
-	m.broker.subscribe(m.member.GetID(), cmdType...)
+	m.broker.subscribe(m.id, cmdType...)
 }
 
-func (m *memberWrapper[Command]) handleMessage(sender Handle, cmd Command, ref Handle) {
+func (m *memberWrapper[Command]) handleMessage(sender Handle, cmd Command) {
+	var (
+		refID  = cmd.GetRefID()
+		refReq = m.getRequest(refID)
+	)
+	if refReq != nil {
+		if m.tryHandleResponse(refID, refReq, sender, cmd) {
+			return
+		}
+	}
+	m.messageHandler(sender, cmd, m)
+}
 
+func (m *memberWrapper[Command]) checkRequestTimeout(handle Handle) {
+	time.Sleep(m.requestTimeout)
+	req := m.getRequest(handle)
+	if req == nil {
+		return
+	}
+	req.mx.Lock()
+	defer req.mx.Unlock()
+	if req.nextTimeout.Before(time.Now()) {
+		req.closed = true
+		req.handler(nil, ErrRequestTimeout)
+		go m.removeClosedRequest(handle)
+	}
+}
+
+func (m *memberWrapper[Command]) getRequest(handle Handle) *messageRequest[Command] {
+	m.mx.Lock()
+	defer m.mx.Unlock()
+	return m.activeRequests[handle]
+}
+
+func (m *memberWrapper[Command]) removeClosedRequest(handle Handle) {
+	m.mx.Lock()
+	defer m.mx.Unlock()
+	req := m.activeRequests[handle]
+	if req != nil && req.closed {
+		delete(m.activeRequests, handle)
+	}
+}
+
+func (m *memberWrapper[Command]) tryHandleResponse(
+	handle Handle, req *messageRequest[Command], sender Handle, cmd Command,
+) bool {
+	req.mx.Lock()
+	defer req.mx.Unlock()
+	if req.closed {
+		return false
+	}
+	req.nextTimeout = time.Now().Add(m.requestTimeout)
+	go func() {
+		isDone := req.handler(cmd, nil)
+		if isDone {
+			req.mx.Lock()
+			defer req.mx.Unlock()
+			req.closed = true
+			go m.removeClosedRequest(handle)
+		}
+	}()
+	return true
 }
 
 func (h Handle) GetTypeID() uint32 {
