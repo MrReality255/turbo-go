@@ -11,7 +11,15 @@ import (
 var (
 	ErrHandleConflict = errors.New("request with same ID is still in processing")
 	ErrRequestTimeout = errors.New("request timeout")
+	ErrRequestAborted = errors.New("request aborted")
 )
+
+type IRequestManager[Command ICommand] interface {
+	Abort()
+	Accept(msg Command)
+	Request(req Command) (Command, error)
+	RequestMultiple(req Command, handler func(responseCmd Command, err error) bool)
+}
 
 type requestWrapper[Command ICommand] struct {
 	refID         Handle
@@ -22,6 +30,7 @@ type requestWrapper[Command ICommand] struct {
 }
 
 type requestManager[Command ICommand] struct {
+	isAborted      bool
 	activeRequests map[Handle]*requestWrapper[Command]
 	mx             sync.Mutex
 	descriptor     CommandDescriptor[Command]
@@ -30,12 +39,12 @@ type requestManager[Command ICommand] struct {
 	timeout        time.Duration
 }
 
-func newRequestManager[Command ICommand](
+func NewRequestManager[Command ICommand](
 	descriptor CommandDescriptor[Command],
 	senderFct func(cmd Command) error,
 	receiverFct func(Cmd Command),
 	timeout time.Duration,
-) *requestManager[Command] {
+) IRequestManager[Command] {
 	return &requestManager[Command]{
 		activeRequests: make(map[Handle]*requestWrapper[Command]),
 		descriptor:     descriptor,
@@ -43,6 +52,17 @@ func newRequestManager[Command ICommand](
 		receiverFct:    receiverFct,
 		timeout:        timeout,
 	}
+}
+
+func (m *requestManager[Command]) Abort() {
+	m.mx.Lock()
+	defer m.mx.Unlock()
+	m.isAborted = true
+	for _, request := range m.activeRequests {
+		var dummy Command
+		request.handlerLocked(dummy, ErrRequestAborted)
+	}
+	m.activeRequests = make(map[Handle]*requestWrapper[Command])
 }
 
 func (m *requestManager[Command]) Accept(msg Command) {
@@ -88,7 +108,12 @@ func (m *requestManager[Command]) RequestMultiple(
 	)
 
 	utils.ExecLocked(&m.mx, func() {
-		if m.activeRequests[handle] != nil {
+		switch {
+		case m.isAborted:
+			_ = handler(dummy, ErrHandleConflict)
+			isDone = true
+			return
+		case m.activeRequests[handle] != nil:
 			_ = handler(dummy, ErrHandleConflict)
 			isDone = true
 			return
