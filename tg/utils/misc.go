@@ -19,6 +19,9 @@ func ConstFct[T any](value T) func() T {
 	}
 }
 
+func IgnoreErr(_ error) {
+}
+
 func IsErr(err error, options ...error) bool {
 	for _, o := range options {
 		if errors.Is(err, o) {
@@ -89,6 +92,14 @@ func permStep(count int, from float64, till float64, step float64, fct func(case
 	}
 }
 */
+
+func CallWith[T any](callback func(func()), what func() T) T {
+	var src T
+	callback(func() {
+		src = what()
+	})
+	return src
+}
 
 func DataOrErr[T any](data T, err error) ItemWithErr[T] {
 	return ItemWithErr[T]{Data: data, Err: err}

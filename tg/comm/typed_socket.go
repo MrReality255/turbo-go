@@ -1,16 +1,9 @@
 package comm
 
 import (
-	"errors"
 	"io"
-	"sync"
 
-	"github.com/MrReality255/turbo-go/tg/log"
 	"github.com/MrReality255/turbo-go/tg/utils"
-)
-
-var (
-	ErrNoResponse = errors.New("no response")
 )
 
 type IAbstractSocket interface {
@@ -27,10 +20,8 @@ type ITypedSocket[T any] interface {
 }
 
 type TypedSocket[T any] struct {
-	conn     io.Closer
-	mx       *sync.Mutex
-	chClose  chan bool
-	isClosed bool
+	conn io.Closer
+	p    utils.IRunner
 
 	onRead  func() (T, error)
 	onWrite func(data T) error
@@ -61,7 +52,6 @@ func (tsf *TypedSocketFactory[T]) NewTcpClient(addr string, port int) (ITypedSoc
 
 func (tsf *TypedSocketFactory[T]) New(src IAbstractSocket) ITypedSocket[T] {
 	return &TypedSocket[T]{
-		mx:   &sync.Mutex{},
 		conn: src,
 		onRead: func() (T, error) {
 			return tsf.onRead(src)
@@ -69,40 +59,17 @@ func (tsf *TypedSocketFactory[T]) New(src IAbstractSocket) ITypedSocket[T] {
 		onWrite: func(data T) error {
 			return tsf.onWrite(src, data)
 		},
+		p: utils.NewRuner(
+			nil,
+			func() error {
+				return src.Close()
+			},
+		),
 	}
-}
-
-func (m *TypedSocket[T]) abort(hint string, err error) {
-	m.mx.Lock()
-	defer m.mx.Unlock()
-	if m.isClosed {
-		return
-	}
-
-	log.LogError(hint, err)
-	if err = m.closeLocked(); err != nil {
-		log.LogError("error while closing the socket: %v", err)
-	}
-}
-
-func (m *TypedSocket[T]) closeLocked() error {
-	if m.isClosed {
-		return nil
-	}
-	m.isClosed = true
-	if m.chClose != nil {
-		m.chClose <- true
-		close(m.chClose)
-		m.chClose = nil
-	}
-
-	return m.conn.Close()
 }
 
 func (m *TypedSocket[T]) Close() error {
-	m.mx.Lock()
-	defer m.mx.Unlock()
-	return m.closeLocked()
+	return m.p.Close()
 }
 
 func (m *TypedSocket[T]) Read() (T, error) {
@@ -110,13 +77,7 @@ func (m *TypedSocket[T]) Read() (T, error) {
 }
 
 func (m *TypedSocket[T]) Wait() {
-	utils.ExecLocked(m.mx, func() {
-		if m.chClose != nil {
-			panic("socket is already waiting")
-		}
-		m.chClose = make(chan bool, 1)
-	})
-	<-m.chClose
+	m.p.Wait()
 }
 
 func (m *TypedSocket[T]) Write(data T) error {
