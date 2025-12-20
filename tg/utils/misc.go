@@ -13,6 +13,12 @@ type ItemWithErr[T any] struct {
 	Err  error
 }
 
+func ConstFct[T any](value T) func() T {
+	return func() T {
+		return value
+	}
+}
+
 func IsErr(err error, options ...error) bool {
 	for _, o := range options {
 		if errors.Is(err, o) {

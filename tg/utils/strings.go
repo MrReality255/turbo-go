@@ -8,11 +8,27 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/google/uuid"
 	"github.com/kataras/iris/v12/context"
 	"golang.org/x/exp/constraints"
 )
+
+type IStrings interface {
+	Add(items ...string)
+	Addf(item string, args ...any)
+	Content() []string
+	Sorted() []string
+	Join(sep string) string
+	SortJoin(sep string) string
+}
+
+type StringList struct {
+	mx      sync.Mutex
+	items   []string
+	itemMap map[string]bool
+}
 
 func FromJSON(src interface{}, ptr interface{}) error {
 	switch src := src.(type) {
@@ -121,4 +137,59 @@ func StrToNrDef[A constraints.Integer](str string, def A) A {
 
 func StrToWordDef(str string, def uint16) uint16 {
 	return StrToNrDef(str, def)
+}
+
+func NewStringList(maxCount int, isDistinct bool, initItems ...string) IStrings {
+	list := &StringList{
+		items: make([]string, 0, maxCount),
+		itemMap: IfThenFct(
+			isDistinct,
+			func() map[string]bool {
+				return make(map[string]bool, maxCount)
+			},
+			ConstFct[map[string]bool](nil),
+		),
+	}
+
+	list.Add(initItems...)
+	return list
+}
+
+func (sl *StringList) Add(items ...string) {
+	sl.mx.Lock()
+	defer sl.mx.Unlock()
+
+	for _, item := range items {
+		canAdd := sl.itemMap == nil || !sl.itemMap[item]
+		if canAdd {
+			sl.items = append(sl.items, item)
+			if sl.itemMap != nil {
+				sl.itemMap[item] = true
+			}
+		}
+	}
+}
+
+func (sl *StringList) Addf(item string, args ...any) {
+	sl.Add(fmt.Sprintf(item, args...))
+}
+
+func (sl *StringList) Content() []string {
+	sl.mx.Lock()
+	defer sl.mx.Unlock()
+	return sl.items
+}
+
+func (sl *StringList) Sorted() []string {
+	return ArraySort(sl.Content(), func(item1 string, item2 string) bool {
+		return item1 < item2
+	})
+}
+
+func (sl *StringList) Join(sep string) string {
+	return strings.Join(sl.Content(), sep)
+}
+
+func (sl *StringList) SortJoin(sep string) string {
+	return strings.Join(sl.Sorted(), sep)
 }
