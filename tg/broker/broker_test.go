@@ -1,11 +1,6 @@
 package broker
 
-import (
-	"fmt"
-	"testing"
-	"time"
-)
-
+/*
 type testMessage struct {
 	id      uint64
 	refID   uint64
@@ -45,3 +40,4 @@ func (t *testSender) GetID() Handle {
 
 func (t *testSender) HandleMessage(sender Handle, msg testMessage) {
 }
+*/

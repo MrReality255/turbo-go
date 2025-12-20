@@ -49,7 +49,7 @@ func New[Command ICommand](
 		members:        make(map[Handle]*memberWrapper[Command]),
 		subscribers:    make(subscribersMap),
 	}
-	c.p = utils.NewRuner(
+	c.p = utils.NewRunner(
 		func() (canContinue bool) {
 			msg, ok := <-c.chQueue
 			if ok {
@@ -62,6 +62,7 @@ func New[Command ICommand](
 			return nil
 		},
 	)
+	c.p.Start()
 
 	return c
 }
@@ -76,7 +77,7 @@ func (c *controller[Command]) AddMember(
 			messageHandler: messageHandler,
 			broker:         c,
 			requestTimeout: c.requestTimeout,
-			reqManager:     make(map[Handle]*requestManager[Command]),
+			reqManager:     make(map[Handle]IRequestManager[Command]),
 		}
 		c.members[handle] = wrapper
 		return wrapper

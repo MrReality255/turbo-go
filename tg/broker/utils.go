@@ -20,3 +20,11 @@ func (h Handle) GetTypeID() uint32 {
 func (h Handle) GetSeqID() uint32 {
 	return uint32(h & 0xffffffff)
 }
+
+func NewHandle(typeID, seqID uint32) Handle {
+	return Handle((uint64(typeID) << 32) | uint64(seqID))
+}
+
+func NewHandleType(typeID uint32) Handle {
+	return NewHandle(typeID, 0)
+}

@@ -15,12 +15,13 @@ type runner struct {
 	mx             sync.Mutex
 	chWaitChannels []chan bool
 	isClosed       bool
+	isStarted      bool
 
 	onNext  func() (canContinue bool)
 	onClose func() error
 }
 
-func NewRuner(
+func NewRunner(
 	onNext func() (canContinue bool),
 	onClose func() error,
 ) IRunner {
@@ -48,12 +49,20 @@ func (p *runner) Close() error {
 }
 
 func (p *runner) Start() {
+	ExecLocked(&p.mx, func() {
+		p.isStarted = true
+	})
 	if p.onNext != nil {
 		go p.loop()
 	}
 }
 
 func (p *runner) Wait() {
+	ExecLocked(&p.mx, func() {
+		if !p.isStarted {
+			panic("runner is not started")
+		}
+	})
 	ch := p.addWaitChannel()
 	_ = <-ch
 }

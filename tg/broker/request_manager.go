@@ -110,11 +110,15 @@ func (m *requestManager[Command]) RequestMultiple(
 	utils.ExecLocked(&m.mx, func() {
 		switch {
 		case m.isAborted:
-			_ = handler(dummy, ErrHandleConflict)
+			go func() {
+				_ = handler(dummy, ErrHandleConflict)
+			}()
 			isDone = true
 			return
 		case m.activeRequests[handle] != nil:
-			_ = handler(dummy, ErrHandleConflict)
+			go func() {
+				_ = handler(dummy, ErrHandleConflict)
+			}()
 			isDone = true
 			return
 		}
@@ -124,6 +128,16 @@ func (m *requestManager[Command]) RequestMultiple(
 		return
 	}
 	go m.checkTimeout(handle, m.timeout+time.Millisecond, newRec)
+	err := m.senderFct(req)
+	if err != nil {
+		utils.ExecLocked(&m.mx, func() {
+			var dummy Command
+			delete(m.activeRequests, handle)
+			go func() {
+				_ = handler(dummy, err)
+			}()
+		})
+	}
 }
 
 func (m *requestManager[Command]) checkTimeout(

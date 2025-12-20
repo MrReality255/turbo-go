@@ -51,7 +51,7 @@ func (tsf *TypedSocketFactory[T]) NewTcpClient(addr string, port int) (ITypedSoc
 }
 
 func (tsf *TypedSocketFactory[T]) New(src IAbstractSocket) ITypedSocket[T] {
-	return &TypedSocket[T]{
+	r := &TypedSocket[T]{
 		conn: src,
 		onRead: func() (T, error) {
 			return tsf.onRead(src)
@@ -59,13 +59,14 @@ func (tsf *TypedSocketFactory[T]) New(src IAbstractSocket) ITypedSocket[T] {
 		onWrite: func(data T) error {
 			return tsf.onWrite(src, data)
 		},
-		p: utils.NewRuner(
+		p: utils.NewRunner(
 			nil,
 			func() error {
 				return src.Close()
 			},
 		),
 	}
+	return r
 }
 
 func (m *TypedSocket[T]) Close() error {
@@ -77,6 +78,7 @@ func (m *TypedSocket[T]) Read() (T, error) {
 }
 
 func (m *TypedSocket[T]) Wait() {
+	m.p.Start()
 	m.p.Wait()
 }
 

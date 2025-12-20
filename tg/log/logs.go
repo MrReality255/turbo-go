@@ -64,7 +64,7 @@ func Info(msg string, params ...any) {
 
 func LogError(msg string, err error) {
 	if !strings.Contains(msg, "%") {
-		msg = fmt.Sprintf("%v %%v", msg, err)
+		msg = fmt.Sprintf("%v %v", msg, err)
 	}
 	log.Errorf(msg, err)
 }

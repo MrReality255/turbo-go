@@ -22,7 +22,7 @@ type memberWrapper[Command ICommand] struct {
 	broker         *controller[Command]
 	requestTimeout time.Duration
 
-	reqManager map[Handle]*requestManager[Command]
+	reqManager map[Handle]IRequestManager[Command]
 	mx         sync.Mutex
 }
 
@@ -46,6 +46,9 @@ func (m *memberWrapper[Command]) Request(receiver Handle, cmd Command) (Command,
 func (m *memberWrapper[Command]) RequestMultiple(
 	receiver Handle, cmd Command, handler RequestHandler[Command],
 ) {
+	if receiver == HandleAny {
+		panic("request must have a receiver")
+	}
 	m.getReqManager(receiver).RequestMultiple(cmd, handler)
 }
 
@@ -57,11 +60,11 @@ func (m *memberWrapper[Command]) Subscribe(cmdType ...uint32) {
 	m.broker.subscribe(m.id, cmdType...)
 }
 
-func (m *memberWrapper[Command]) getReqManager(receiver Handle) *requestManager[Command] {
+func (m *memberWrapper[Command]) getReqManager(receiver Handle) IRequestManager[Command] {
 	m.mx.Lock()
 	defer m.mx.Unlock()
 	if m.reqManager[receiver] == nil {
-		m.reqManager[receiver] = newRequestManager[Command](
+		m.reqManager[receiver] = NewRequestManager[Command](
 			m.descriptor,
 			func(cmd Command) error {
 				m.Send(receiver, cmd)
