@@ -7,6 +7,12 @@ import (
 	"sync"
 )
 
+type IConcurrentLauncher interface {
+	Go(fct interface{})
+	Locked(fct interface{}) error
+	Wait() error
+}
+
 type ConcurrentLauncher struct {
 	wg      sync.WaitGroup
 	errList *ErrorList
@@ -19,7 +25,7 @@ type ErrorList struct {
 	errs []error
 }
 
-func NewConcurrentLauncher(maxCount int, limit int) *ConcurrentLauncher {
+func NewConcurrentLauncher(maxCount int, limit int) IConcurrentLauncher {
 	cl := &ConcurrentLauncher{
 		errList: NewErrorList(maxCount),
 	}
