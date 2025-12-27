@@ -21,7 +21,7 @@ type IBatchProcessor interface {
 	Flush() error
 }
 
-type batchProcessorConfig struct {
+type BatchProcessorConfig struct {
 	FlushThreads int
 	Length       int
 	Timeout      time.Duration
@@ -32,7 +32,7 @@ type batchRec struct {
 }
 
 type batchProcessor struct {
-	config batchProcessorConfig
+	config BatchProcessorConfig
 	onSwap func(reason BatchFlushReason) func() error
 
 	mx sync.Mutex
@@ -43,7 +43,7 @@ type batchProcessor struct {
 }
 
 func NewBatchProcessor(
-	config batchProcessorConfig,
+	config BatchProcessorConfig,
 	onSwap func(reason BatchFlushReason) func() error,
 ) IBatchProcessor {
 	return &batchProcessor{config: config, onSwap: onSwap, chThreads: make(chan int, utils.Coalesce(config.FlushThreads, 1))}
