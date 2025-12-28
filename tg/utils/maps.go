@@ -30,6 +30,15 @@ func MapKeysIf[C comparable, T any](
 
 }
 
+func MapMerge[C comparable, T any](src map[C]T, other map[C]T, overwrite bool) {
+	for k, v := range other {
+		_, ok := src[k]
+		if overwrite || !ok {
+			src[k] = v
+		}
+	}
+}
+
 func MapValues[C comparable, T any](src map[C]T, lessFct func(item1 T, item2 T) bool) []T {
 	return MapValuesIf(src, nil, lessFct)
 }

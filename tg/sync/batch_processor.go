@@ -97,9 +97,9 @@ func (b *batchProcessor) checkTimeout(batch *batchRec, timeout time.Duration) {
 func (b *batchProcessor) doAdd(adderFct func() int) (func() error, error) {
 	b.mx.Lock()
 	defer b.mx.Unlock()
-	if b.lastErr != nil {
+	if err := b.lastErr; err != nil {
 		b.lastErr = nil
-		return nil, b.lastErr
+		return nil, err
 	}
 
 	if b.batch == nil {

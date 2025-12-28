@@ -2,6 +2,8 @@ package sync
 
 import (
 	"sync"
+
+	"github.com/MrReality255/turbo-go/tg/utils"
 )
 
 type IWaitGroup interface {
@@ -18,6 +20,7 @@ type waitGroup struct {
 }
 
 func NewWaitGroup(maxCount int, threadCount int) IWaitGroup {
+	threadCount = utils.Coalesce(threadCount, maxCount)
 	chDone := make(chan error, 1)
 
 	return &waitGroup{

@@ -24,6 +24,15 @@ func ArrayFilter[T any](src []T, checkFct func(item T) bool) []T {
 	return result
 }
 
+func ArrayGroupBy[T any, C comparable](items []T, keyFct func(item T) C) map[C][]T {
+	result := make(map[C][]T)
+	for _, item := range items {
+		key := keyFct(item)
+		result[key] = append(result[key], item)
+	}
+	return result
+}
+
 func ArrayHasAny[T any](arr []T, fct func(item T) bool) bool {
 	for _, item := range arr {
 		if fct == nil || fct(item) {
