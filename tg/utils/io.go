@@ -130,8 +130,12 @@ func LoadFromJSON(file string, target interface{}) error {
 	return FromJSON(c, target)
 }
 
+func MkDir(targetDir string) error {
+	return os.MkdirAll(targetDir, os.ModePerm)
+}
+
 func MkDirFor(targetFile string) error {
-	return os.MkdirAll(filepath.Dir(targetFile), os.ModePerm)
+	return MkDir(filepath.Dir(targetFile))
 }
 
 func NewFromFileJSON[T any](file string) (*T, error) {
