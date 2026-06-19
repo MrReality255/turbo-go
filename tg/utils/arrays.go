@@ -24,6 +24,14 @@ func ArrayFilter[T any](src []T, checkFct func(item T) bool) []T {
 	return result
 }
 
+func ArrayReduce[T any, S any](src []T, initValue S, cb func(prev S, next T) S) S {
+	v := initValue
+	for _, item := range src {
+		v = cb(v, item)
+	}
+	return v
+}
+
 func ArrayGroupBy[T any, C comparable](items []T, keyFct func(item T) C) map[C][]T {
 	result := make(map[C][]T)
 	for _, item := range items {
@@ -116,6 +124,22 @@ func ArrayToMapEx[T comparable, S comparable, V any](
 		}
 	}
 	return result
+}
+
+func ArrayChooseValue[T any](src []T, checkFct func(prev T, next T) bool, emptyValue T) T {
+	switch len(src) {
+	case 0:
+		return emptyValue
+	case 1:
+		return src[0]
+	default:
+		return ArrayReduce(src[1:], emptyValue, func(prev T, next T) T {
+			if checkFct(prev, next) {
+				return next
+			}
+			return prev
+		})
+	}
 }
 
 func ArrayChoose[T any](src []*T, checkFct func(prev *T, next *T) bool) *T {

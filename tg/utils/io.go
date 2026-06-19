@@ -3,11 +3,17 @@ package utils
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/csv"
 	"encoding/gob"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+)
+
+var (
+	ErrInvalidFileFormat = errors.New("invalid file format")
 )
 
 func ByteArray(items ...interface{}) ([]byte, error) {
@@ -17,6 +23,17 @@ func ByteArray(items ...interface{}) ([]byte, error) {
 	}
 
 	return b.Bytes(), nil
+}
+
+func CloseAfterWith[T any](x io.Closer, fct func() (T, error)) (result T, err error) {
+	err = CloseAfter(x, func() error {
+		d, err2 := fct()
+		if err2 == nil {
+			result = d
+		}
+		return err2
+	})
+	return
 }
 
 func CloseAfter(x io.Closer, fct func() error) error {
@@ -109,6 +126,42 @@ func LoadDirJSON[T any](dir string, prepFct func() *T) ([]*T, error) {
 		},
 	)
 	return r, err
+}
+
+func LoadFromCSV[T any](filename string, rowCallback func([]string) *T, skipRows int) ([]*T, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]*T, 0, 64000)
+
+	if err := CloseAfter(file, func() error {
+		var (
+			rdr    = csv.NewReader(file)
+			rowCnt = 0
+		)
+		for {
+			row, err := rdr.Read()
+			if IsErr(err, io.EOF) {
+				return nil
+			}
+
+			if rowCnt < skipRows {
+				rowCnt++
+				continue
+			}
+
+			if r := rowCallback(row); r != nil {
+				result = append(result, r)
+			} else {
+				return ErrInvalidFileFormat
+			}
+		}
+	}); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 func LoadFromBin(filename string, ptr any) error {

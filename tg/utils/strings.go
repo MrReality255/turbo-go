@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/kataras/iris/v12/context"
@@ -121,6 +122,32 @@ func StrToIntDef(str string, defaultValue int) int {
 		return defaultValue
 	}
 	return int(p)
+}
+
+func StrToTime(str string) time.Time {
+	return StrToTimeLoc(str, time.Local)
+}
+
+func StrToTimeUTC(str string) time.Time {
+	return StrToTimeLoc(str, time.UTC)
+}
+
+func StrToTimeLoc(str string, loc *time.Location) time.Time {
+	formats := []string{
+		"2006-01-02 15:04:05",
+		"02.01.2006 15:04:05",
+		"2006-01-02",
+		"02.01.2006",
+		"15:04:05",
+	}
+
+	for _, f := range formats {
+		v, err := time.ParseInLocation(f, str, loc)
+		if err == nil {
+			return v
+		}
+	}
+	return time.Time{}
 }
 
 func StrToInt64Def(str string, defaultValue int64) int64 {

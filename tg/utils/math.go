@@ -11,6 +11,10 @@ type Counter struct {
 	value int64
 }
 
+type INumeric interface {
+	constraints.Integer | constraints.Float
+}
+
 func Clamp[T float64 | int](value T, min T, max T) T {
 	switch {
 	case value < min:
@@ -121,4 +125,26 @@ func (c *Counter) Get() int64 {
 
 func Align[T constraints.Integer](src T, step T) T {
 	return (src / step) * step
+}
+
+func Max[T INumeric](values ...T) T {
+	return ArrayChooseValue(values, func(prev T, next T) bool {
+		return next > prev
+	}, 0)
+}
+
+func Min[T INumeric](values ...T) T {
+	return ArrayChooseValue(values, func(prev T, next T) bool {
+		return next < prev
+	}, 0)
+}
+
+func Sum[T INumeric](values ...T) T {
+	return ArrayReduce(
+		values,
+		T(0),
+		func(prev T, next T) T {
+			return prev + next
+		},
+	)
 }

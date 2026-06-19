@@ -30,8 +30,6 @@ type controller[Command ICommand] struct {
 	requestTimeout time.Duration
 	descriptor     CommandDescriptor[Command]
 
-	// mx sync.Mutex
-
 	chQueue     chan *messageWrapper[Command]
 	members     map[Handle]*memberWrapper[Command]
 	subscribers subscribersMap
