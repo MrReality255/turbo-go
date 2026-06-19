@@ -69,11 +69,11 @@ func ArrayMapEx[T any, V any](src []T, fct func(item T) (V, bool)) []V {
 	return result
 }
 
-func ArrayMapExErr[T any, V any](src []T, fct func(item T) (V, bool, error)) ([]V, error) {
+func ArrayMapErrIdx[T any, V any](src []T, fct func(item T, idx int) (V, bool, error)) ([]V, error) {
 	result := make([]V, 0, len(src))
 
-	for _, item := range src {
-		item, ok, err := fct(item)
+	for idx, item := range src {
+		item, ok, err := fct(item, idx)
 		switch {
 		case err != nil:
 			return nil, err
@@ -82,6 +82,20 @@ func ArrayMapExErr[T any, V any](src []T, fct func(item T) (V, bool, error)) ([]
 		}
 	}
 	return result, nil
+
+}
+
+func ArrayMapIdx[T any, V any](src []T, fct func(item T, idx int) V) []V {
+	r, _ := ArrayMapErrIdx(src, func(item T, idx int) (V, bool, error) {
+		return fct(item, idx), true, nil
+	})
+	return r
+}
+
+func ArrayMapExErr[T any, V any](src []T, fct func(item T) (V, bool, error)) ([]V, error) {
+	return ArrayMapErrIdx(src, func(item T, _idx int) (V, bool, error) {
+		return fct(item)
+	})
 }
 
 func ArrayMapErr[T any, V any](src []T, fct func(item T) (V, error)) ([]V, error) {

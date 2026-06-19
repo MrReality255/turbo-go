@@ -116,6 +116,10 @@ func ParseJSON[T any](src any) (*T, error) {
 	return &t, nil
 }
 
+func DateTimeToStr(x time.Time) string {
+	return x.Format("2006-01-02 15:04:05")
+}
+
 func StrToIntDef(str string, defaultValue int) int {
 	p, err := strconv.ParseInt(str, 10, 32)
 	if err != nil {
@@ -219,4 +223,66 @@ func (sl *StringList) Join(sep string) string {
 
 func (sl *StringList) SortJoin(sep string) string {
 	return strings.Join(sl.Sorted(), sep)
+}
+
+func CreateTable[T any](
+	rows []T,
+	cols []string,
+	rowFct func(row T) []any,
+) string {
+	if len(cols) == 0 {
+		return ""
+	}
+
+	// prepare data -> convert everything to strings
+	strRows := ArrayMap(
+		rows,
+		func(item T) []string {
+			var (
+				row    = rowFct(item)
+				strRow = make([]string, len(cols))
+			)
+			for i, v := range row {
+				strRow[i] = fmt.Sprintf("%v", v)
+			}
+			return strRow
+		},
+	)
+
+	colWidths := ArrayMapIdx(
+		cols,
+		func(item string, idx int) int {
+			return Max(
+				append([]int{len(item)},
+					ArrayMap(
+						strRows,
+						func(item []string) int {
+							return len(item[idx])
+						},
+					)...,
+				)...,
+			)
+		},
+	)
+	var (
+	// totalColWidth = Sum(colWidths...)
+	//lineWidth     = totalColWidth + 3*len(cols) + 1
+	)
+
+	separator := strings.Join(
+		ArrayMap(
+			colWidths,
+			func(w int) string {
+				return strings.Repeat("-", w+2)
+			},
+		), "+")
+
+	sb := strings.Builder{}
+
+	sb.WriteString(fmt.Sprintf("%v\n", separator))
+	sb.WriteString(strings.Join(ArrayMapIdx(cols, func(item string, idx int) string {
+		return fmt.Sprintf(" %v%v ", item, strings.Repeat(" ", colWidths[idx]-len(item)))
+	}), "+"))
+
+	return sb.String()
 }
