@@ -279,10 +279,24 @@ func CreateTable[T any](
 
 	sb := strings.Builder{}
 
-	sb.WriteString(fmt.Sprintf("%v\n", separator))
-	sb.WriteString(strings.Join(ArrayMapIdx(cols, func(item string, idx int) string {
-		return fmt.Sprintf(" %v%v ", item, strings.Repeat(" ", colWidths[idx]-len(item)))
-	}), "+"))
+	sb.WriteString(fmt.Sprintf("+%v+\n", separator))
+	sb.WriteString(
+		fmt.Sprintf("|%v|",
+			strings.Join(ArrayMapIdx(cols, func(item string, idx int) string {
+				padding := colWidths[idx] - len(item)
+				return fmt.Sprintf(" %v%v ", item, strings.Repeat(" ", padding))
+			}), "+")),
+	)
+	sb.WriteString(fmt.Sprintf("\n+%v+\n", separator))
+	for _, row := range strRows {
+		sb.WriteString(
+			fmt.Sprintf("|%v|\n",
+				strings.Join(ArrayMapIdx(row, func(item string, idx int) string {
+					padding := colWidths[idx] - len(item)
+					return fmt.Sprintf(" %v%v ", item, strings.Repeat(" ", padding))
+				}), "+")),
+		)
+	}
 
 	return sb.String()
 }

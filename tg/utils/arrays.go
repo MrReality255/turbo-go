@@ -147,7 +147,7 @@ func ArrayChooseValue[T any](src []T, checkFct func(prev T, next T) bool, emptyV
 	case 1:
 		return src[0]
 	default:
-		return ArrayReduce(src[1:], emptyValue, func(prev T, next T) T {
+		return ArrayReduce(src[1:], src[0], func(prev T, next T) T {
 			if checkFct(prev, next) {
 				return next
 			}
