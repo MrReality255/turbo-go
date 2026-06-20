@@ -128,6 +128,33 @@ func LoadDirJSON[T any](dir string, prepFct func() *T) ([]*T, error) {
 	return r, err
 }
 
+func SaveToCSV[T any](filename string, data []T, header []string, rowCb func(row T) []string) error {
+	file, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+
+	return CloseAfter(file, func() error {
+		writer := csv.NewWriter(file)
+		defer writer.Flush()
+
+		if len(header) > 0 {
+			if err := writer.Write(header); err != nil {
+				return err
+			}
+		}
+
+		for _, item := range data {
+			row := rowCb(item)
+			if err := writer.Write(row); err != nil {
+				return err
+			}
+		}
+		writer.Flush()
+		return writer.Error()
+	})
+}
+
 func LoadFromCSV[T any](filename string, rowCallback func([]string) *T, skipRows int) ([]*T, error) {
 	file, err := os.Open(filename)
 	if err != nil {
