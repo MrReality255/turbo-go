@@ -15,9 +15,18 @@ func ArrayClone[T any](src []T) []T {
 }
 
 func ArrayFilter[T any](src []T, checkFct func(item T) bool) []T {
+	return ArrayFilterIdx(src, func(item T, _idx int) bool {
+		if checkFct == nil {
+			return true
+		}
+		return checkFct(item)
+	})
+}
+
+func ArrayFilterIdx[T any](src []T, checkFct func(item T, idx int) bool) []T {
 	result := make([]T, 0, len(src))
-	for _, item := range src {
-		if checkFct == nil || checkFct(item) {
+	for idx, item := range src {
+		if checkFct == nil || checkFct(item, idx) {
 			result = append(result, item)
 		}
 	}
@@ -154,6 +163,14 @@ func ArrayChooseValue[T any](src []T, checkFct func(prev T, next T) bool, emptyV
 			return prev
 		})
 	}
+}
+func ArrayFind[T any](src []T, cond func(item T) bool) (result T) {
+	for _, item := range src {
+		if cond(item) {
+			return item
+		}
+	}
+	return
 }
 
 func ArrayChoose[T any](src []*T, checkFct func(prev *T, next *T) bool) *T {
