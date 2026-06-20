@@ -264,10 +264,6 @@ func CreateTable[T any](
 			)
 		},
 	)
-	var (
-	// totalColWidth = Sum(colWidths...)
-	//lineWidth     = totalColWidth + 3*len(cols) + 1
-	)
 
 	separator := strings.Join(
 		ArrayMap(

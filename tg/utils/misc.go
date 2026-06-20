@@ -64,6 +64,10 @@ func StrToFloat64(str string) float64 {
 	return v
 }
 
+func FloatToStr(x float64) string {
+	return fmt.Sprintf("%f", x)
+}
+
 func Count(m CountMap) {
 	for ptr, v := range m {
 		if v {

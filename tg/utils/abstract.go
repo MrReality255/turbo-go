@@ -34,6 +34,32 @@ func Coalesce[T any](values ...T) T {
 	return src
 }
 
+func Distinct[T comparable](items []T) []T {
+	var (
+		itemMap = make(map[T]bool)
+		result  = make([]T, 0, len(items))
+	)
+	for _, item := range items {
+		if itemMap[item] {
+			continue
+		}
+		result = append(result, item)
+		itemMap[item] = true
+	}
+	return result
+}
+
+func Flatten[T any](src [][]T) []T {
+	totalLength := Sum(ArrayMap(src, func(item []T) int {
+		return len(item)
+	})...)
+	resultArray := make([]T, 0, totalLength)
+	for _, row := range src {
+		resultArray = append(resultArray, row...)
+	}
+	return resultArray
+}
+
 func IfPass[C any](cond bool, fct func() (*C, error)) (*C, error) {
 	if !cond {
 		return nil, nil
