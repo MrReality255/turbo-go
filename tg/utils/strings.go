@@ -147,7 +147,7 @@ func StrToTimeLoc(str string, loc *time.Location) time.Time {
 
 	for _, f := range formats {
 		v, err := time.ParseInLocation(f, str, loc)
-		if err == nil {
+		if err == nil && !v.IsZero() {
 			return v
 		}
 	}
