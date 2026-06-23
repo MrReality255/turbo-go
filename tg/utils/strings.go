@@ -120,6 +120,10 @@ func DateTimeToStr(x time.Time) string {
 	return x.Format("2006-01-02 15:04:05")
 }
 
+func DateToStr(x time.Time) string {
+	return x.Format("2006-01-02")
+}
+
 func StrToIntDef(str string, defaultValue int) int {
 	p, err := strconv.ParseInt(str, 10, 32)
 	if err != nil {
