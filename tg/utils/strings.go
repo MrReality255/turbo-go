@@ -132,6 +132,12 @@ func StrToIntDef(str string, defaultValue int) int {
 	return int(p)
 }
 
+func SplitStr(s string, by string) []string {
+	return ArrayFilter(strings.Split(s, by), func(item string) bool {
+		return item != ""
+	})
+}
+
 func StrToTime(str string) time.Time {
 	return StrToTimeLoc(str, time.Local)
 }
