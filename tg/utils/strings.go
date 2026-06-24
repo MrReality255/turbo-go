@@ -306,3 +306,9 @@ func CreateTable[T any](
 
 	return sb.String()
 }
+
+func StrContains(strArray []string, what string) bool {
+	return ArrayHasAny(strArray, func(item string) bool {
+		return item==what
+	})
+}

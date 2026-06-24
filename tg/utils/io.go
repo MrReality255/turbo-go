@@ -6,6 +6,7 @@ import (
 	"encoding/csv"
 	"encoding/gob"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -109,7 +110,17 @@ func GetFileNameWithoutExt(filename string) string {
 	)
 
 	return strings.TrimSuffix(n, ext)
+}
 
+func GetFileNameWithSuffix(path string, suffix string) string {
+	var (
+		ext  = filepath.Ext(path)
+		dir  = filepath.Dir(path)
+		base = filepath.Base(path)
+		name = base[:len(base)-len(ext)]
+	)
+
+	return filepath.Join(dir, fmt.Sprintf("%v%v%v", name, suffix, ext))
 }
 
 func LoadDirJSON[T any](dir string, prepFct func() *T) ([]*T, error) {

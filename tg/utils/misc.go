@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 type CountMap map[*int]bool
@@ -57,7 +58,8 @@ func MustSucceed(err error) {
 }
 
 func StrToFloat64(str string) float64 {
-	v, err := strconv.ParseFloat(str, 64)
+	normalized := strings.ReplaceAll(str, ",", ".")
+	v, err := strconv.ParseFloat(normalized, 64)
 	if err != nil {
 		return 0
 	}
@@ -65,7 +67,7 @@ func StrToFloat64(str string) float64 {
 }
 
 func FloatToStr(x float64) string {
-	return fmt.Sprintf("%f", x)
+	return fmt.Sprintf("%.12f", x)
 }
 
 func Count(m CountMap) {
