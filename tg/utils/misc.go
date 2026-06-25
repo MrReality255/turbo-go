@@ -57,6 +57,15 @@ func MustSucceed(err error) {
 	}
 }
 
+func StrToFloat64E(str string) float64 {
+	return StrToFloat64(
+		strings.ReplaceAll(
+			strings.ReplaceAll(str, ".", ""),
+			",", ".",
+		),
+	)
+}
+
 func StrToFloat64(str string) float64 {
 	normalized := strings.ReplaceAll(str, ",", ".")
 	v, err := strconv.ParseFloat(normalized, 64)

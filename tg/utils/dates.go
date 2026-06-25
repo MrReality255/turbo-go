@@ -7,5 +7,5 @@ func YearEnd(year int) time.Time {
 }
 
 func YearBegin(year int) time.Time {
-	return time.Date(year+1, 1, 1, 0, 0, 0, 0, time.Local)
+	return time.Date(year, 1, 1, 0, 0, 0, 0, time.Local)
 }
