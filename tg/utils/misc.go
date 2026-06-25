@@ -66,8 +66,12 @@ func StrToFloat64(str string) float64 {
 	return v
 }
 
-func FloatToStr(x float64) string {
+func FloatToStrP(x float64) string {
 	return fmt.Sprintf("%.12f", x)
+}
+
+func FloatToStr(x float64) string {
+	return fmt.Sprintf("%.6f", x)
 }
 
 func Count(m CountMap) {
