@@ -34,6 +34,10 @@ func Coalesce[T any](values ...T) T {
 	return src
 }
 
+func DistinctSort[T comparable](items []T, compareFct func(item1 T, item2 T)bool) []T {
+	return ArraySort(Distinct(items), compareFct)
+}
+
 func Distinct[T comparable](items []T) []T {
 	var (
 		itemMap = make(map[T]bool)
